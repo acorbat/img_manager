@@ -85,7 +85,7 @@ from datetime import datetime
 
 import numpy
 
-from tifffile import TiffFile, TiffSequence, lazyattr, natural_sorted
+from img_manager.tifffile import TiffFile, TiffSequence, lazyattr, natural_sorted
 
 __version__ = '2018.02.07'
 __docformat__ = 'restructuredtext en'
