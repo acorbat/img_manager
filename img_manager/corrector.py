@@ -134,8 +134,8 @@ class Corrector(object):
             pp.savefig()
             plt.close()
 
-
-    ## Bleaching Correction
+    # Bleaching Correction
+    ######################
     @staticmethod
     def bleaching_exponential(x, amplitude, characteristic_time, constant):
         """Exponential function to fit bleaching in time series.
