@@ -173,15 +173,17 @@ class Corrector(object):
         """
         stack_corrected = stack.copy()
         times = np.arange(0, time_step * len(stack), time_step)
-        bleached_intensity = self.bleach_model.eval(self.bkg_params, x=times)
+        bleached_intensity = self.bleach_model.eval(self.bleach_params, x=times)
         for ind, frame in enumerate(stack_corrected):
             stack_corrected[ind] = frame / bleached_intensity[ind]
 
         return stack_corrected
 
-    def find_bleaching(self, stack, time_step, mask=None, pp=None):
+    def find_bleaching(self, stack, time_step, pp=None):
         """Given a stack of images, it calculates sum of intensity per timepoint, fits the bleaching exponential curve,
         finds the ideal parameters and saves them. If pp is given a PdfPages, images of fit are saved.
+
+        The set of images given should already be background subtracted.
 
         If fit is not converging, you can amnually modify parameters with:
             >>> corrector.bleach_params['constant'].set(value=40)
@@ -191,7 +193,8 @@ class Corrector(object):
         Parameters
         ----------
         stack : numpy.array
-            stack of images to find intensity bleaching (can be masked with nan images)
+            stack of images to find intensity bleaching (can be masked with nan images). Background should be subtracted
+            before
         time_step : float
             Time step between acquired images
         pp : PdfPages
