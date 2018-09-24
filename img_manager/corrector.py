@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
@@ -293,3 +294,34 @@ class Corrector(object):
             plt.ylabel('frequency')
             pp.savefig()
             plt.close()
+
+    # General
+    #########
+    def save(self, path):
+        """Save actual state of corrector to json.
+
+        Parameters
+        ----------
+        path : path
+            path to file where corrector is to be saved
+        """
+        with open(str(path), 'w') as fp:
+            data = {'bkg': self.bkg_params.dumps(),
+                    'bleach': self.bleach_params.dumps(),
+                    'bleed': [self.bleed_mean, self.bleed_error]}
+            json.dump(data, fp)
+
+    def load(self, path):
+        """Load parameters from json file to corrector.
+
+        Parameters
+        ----------
+        path : path
+            path to file where corrector is to be saved
+        """
+        with open(str(path), 'r') as fp:
+            data = json.load(fp)
+
+            self.bkg_params.loads(data['bkg'])
+            self.bleach_params.loads(data['bleach'])
+            self.bleed_mean, self.bleed_error = data['bleed']
