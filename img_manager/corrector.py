@@ -325,3 +325,24 @@ class Corrector(object):
             self.bkg_params.loads(data['bkg'])
             self.bleach_params.loads(data['bleach'])
             self.bleed_mean, self.bleed_error = data['bleed']
+
+    def subtract_and_normalize(self, stack, time_step):
+        """Apply consecutively a background subtraction and a bleaching normalization.
+
+        Parameters
+        ----------
+        stack : numpy.array
+            Time series of images to be corrected
+        time_step
+            Time step between acquired images
+
+        Returns
+        -------
+        stack_corrected : numpy.array
+            Returns the corrected numpy.array for background and bleaching
+        """
+        stack_corrected = self.subtract_background(stack, time_step)
+
+        stack_corrected = self.correct_bleaching(stack_corrected, time_step)
+
+        return stack_corrected
