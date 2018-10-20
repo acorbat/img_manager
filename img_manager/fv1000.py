@@ -16,6 +16,8 @@ class FV1000(oif.OifFile):
         Get the pixel size in z direction in microns
     get_t_step(self)
         Get time step in seconds
+    get_scales(self)
+        Get dictionary with scales
     get_axis(self)
         Gets a string of the axis in order
     get_clip_bbox
@@ -49,6 +51,14 @@ class FV1000(oif.OifFile):
         end = self.mainfile['Axis 4 Parameters Common']['EndPosition']
         size_t = self.mainfile['Axis 4 Parameters Common']['MaxSize']
         return (end - start) / ((size_t - 1) * 1000)
+
+    def get_scales(self):
+        """Get dictionary with scales"""
+        scales = {'X': self.get_x_step(),
+                  'Y': self.get_y_step(),
+                  'Z': self.get_z_step(),
+                  'T': self.get_t_step()}
+        return scales
 
     def get_axis(self):
         """Gets a string of the axis in order"""
