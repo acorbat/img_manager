@@ -1,5 +1,7 @@
 import pathlib
 
+from datetime import datetime
+
 from img_manager import oiffile as oif
 
 class FV1000(oif.OifFile):
@@ -73,6 +75,12 @@ class FV1000(oif.OifFile):
         x_size = self.mainfile['Axis 0 Parameters Common']['MaxSize']
         y_size = self.mainfile['Axis 1 Parameters Common']['MaxSize']
         return (y_start, y_start + y_size, x_start, x_start + x_size)
+
+    def get_acquisition_time(self):
+        """Gets acquistion time of stack in datetime format"""
+        time_format = "%Y-%m-%d %H:%M:%S %f"
+        time = self.mainfile['General']['ImageCaputreDate'][1:-1] + ' ' + self.mainfile['General']['ImageCaputreDate+MilliSec']
+        return datetime.strptime(time, time_format)
 
     # Specific Function for automatic file generation from Time Controller
     ######################################################################
