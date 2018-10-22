@@ -22,11 +22,11 @@ class FV1000(oif.OifFile):
         Get time step in seconds
     get_scales(self)
         Get dictionary with scales
-    get_axis(self)
+    get_axes(self)
         Gets a string of the axis in order
     get_clip_bbox
         Gets the bounded box of the clipped image
-    transpose_axis(self)
+    transpose_axes(self)
         Loads the stack in the order specified by axes
     get_next_path(self)
         If it's a Time Controller automatically generated set, it gets the path for the next set of images
