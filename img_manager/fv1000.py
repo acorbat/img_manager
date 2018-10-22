@@ -26,6 +26,8 @@ class FV1000(oif.OifFile):
         Gets a string of the axis in order
     get_clip_bbox
         Gets the bounded box of the clipped image
+    get_axes_info(self, axes)
+        Gets dictionary with all the information concerning specified axes
     transpose_axes(self)
         Loads the stack in the order specified by axes
     get_next_path(self)
@@ -85,6 +87,14 @@ class FV1000(oif.OifFile):
         time_format = "%Y-%m-%d %H:%M:%S %f"
         time = self.mainfile['General']['ImageCaputreDate'][1:-1] + ' ' + self.mainfile['General']['ImageCaputreDate+MilliSec']
         return datetime.strptime(time, time_format)
+
+    def get_axes_info(self, axes):
+        """Gets dictionary with all the information concerning specified axes"""
+        if isinstance(axes, str):
+            axes_dict = {ax: str(i) for i, ax in enumerate(['X', 'Y', 'C', 'Z', 'T', 'A', 'L', 'P', 'Q'])}
+            axes = axes_dict[axes]
+
+        return self.mainfile['Axis ' + str(axes) + ' Parameters Common']
 
     def transpose_axes(self, axes, dtype='float'):
         """Loads the stack in the order specified by axes"""
