@@ -3,6 +3,8 @@ import pathlib
 from datetime import datetime
 
 from img_manager import oiffile as oif
+from img_manager import tifffile as tif
+
 
 class FV1000(oif.OifFile):
     """FV1000 saves stacks and images in OifFile format and some of the most used functionalities need to be added to
@@ -24,6 +26,8 @@ class FV1000(oif.OifFile):
         Gets a string of the axis in order
     get_clip_bbox
         Gets the bounded box of the clipped image
+    transpose_axis(self)
+        Loads the stack in the order specified by axes
     get_next_path(self)
         If it's a Time Controller automatically generated set, it gets the path for the next set of images
     get_last_path(self)
@@ -62,7 +66,7 @@ class FV1000(oif.OifFile):
                   'T': self.get_t_step()}
         return scales
 
-    def get_axis(self):
+    def get_axes(self):
         """Gets a string of the axis in order"""
         axes = self.mainfile['Axis Parameter Common']['AxisOrder']
         axes = axes[2:] + 'YX'
@@ -81,6 +85,12 @@ class FV1000(oif.OifFile):
         time_format = "%Y-%m-%d %H:%M:%S %f"
         time = self.mainfile['General']['ImageCaputreDate'][1:-1] + ' ' + self.mainfile['General']['ImageCaputreDate+MilliSec']
         return datetime.strptime(time, time_format)
+
+    def transpose_axes(self, axes, dtype='float'):
+        """Loads the stack in the order specified by axes"""
+        stack = self.asarray().astype(dtype)
+        actual_axes = self.get_axes()
+        return tif.transpose_axes(stack, actual_axes, asaxes=axes)
 
     # Specific Function for automatic file generation from Time Controller
     ######################################################################
