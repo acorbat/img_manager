@@ -104,9 +104,10 @@ class FV1000(oif.OifFile):
 
     # Specific Function for automatic file generation from Time Controller
     ######################################################################
-    def get_next_path(self):
+    def get_next_path(self, path=None):
         """If it's a Time Controller automatically generated set, it gets the path for the next set of images"""
-        path = pathlib.Path(self._fname)
+        if path is None:
+            path = pathlib.Path(self._fname)
         name_parts = path.stem.split('_')
         num = int(name_parts[-1]) + 1
         next_name = '_'.join(name_parts[:-1]) + '_%02d.oif' % num
@@ -118,7 +119,7 @@ class FV1000(oif.OifFile):
         next_path = self.get_next_path()
         while next_path.exists():
             path = next_path
-            next_path = self.get_next_path()
+            next_path = self.get_next_path(path=path)
 
         return path
 
