@@ -216,7 +216,7 @@ class Corrector(object):
         pp : PdfPages
             Images of fitting are saved in this pdf
         """
-        times = np.arange(0, time_step * len(stack), time_step)
+        times = np.arange(0, time_step * (len(stack) + 1), time_step)[0:len(stack)]
 
         bleach_stack = stack.copy()
         total_intensity = [np.nansum(this_stack) for this_stack in bleach_stack]
