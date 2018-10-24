@@ -113,7 +113,7 @@ class FV1000(oif.OifFile):
         next_name = '_'.join(name_parts[:-1]) + '_%02d.oif' % num
         return path.with_name(next_name)
 
-    def get_last_path(self):
+    def get_last_path(self, path=None):
         """It gets the last path for the existing images generated automatically by Time Controller"""
         path = pathlib.Path(self._fname)
         next_path = self.get_next_path()
@@ -130,5 +130,6 @@ class FV1000(oif.OifFile):
         name_parts = path.stem.split('_')
         next_name = '_'.join(name_parts[:-2]) + '_' + '_'.join([kind, '01.oif'])
         path = path.with_name(next_name)
-        other_img = FV1000(str(path))
-        return other_img.get_last_path()
+        path = self.get_last_path(path=path)
+
+        return path
