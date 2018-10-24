@@ -117,7 +117,7 @@ class FV1000(oif.OifFile):
         """It gets the last path for the existing images generated automatically by Time Controller"""
         if path is None:
             path = pathlib.Path(self._fname)
-        next_path = self.get_next_path()
+        next_path = self.get_next_path(path=path)
         while next_path.exists():
             path = next_path
             next_path = self.get_next_path(path=path)
