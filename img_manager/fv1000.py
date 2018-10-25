@@ -85,7 +85,9 @@ class FV1000(oif.OifFile):
     def get_acquisition_time(self):
         """Gets acquistion time of stack in datetime format"""
         time_format = "%Y-%m-%d %H:%M:%S %f"
-        time = self.mainfile['General']['ImageCaputreDate'][1:-1] + ' ' + self.mainfile['General']['ImageCaputreDate+MilliSec']
+        time = self.mainfile['Acquisition Parameters Common']['ImageCaputreDate'] + ' ' +\
+               str(self.mainfile['Acquisition Parameters Common']['ImageCaputreDate+MilliSec'])
+
         return datetime.strptime(time, time_format)
 
     def get_axes_info(self, axes):
