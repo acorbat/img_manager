@@ -1,6 +1,7 @@
 import json
 import numpy as np
 import lmfit as lm
+import imreg_dft as ird
 import matplotlib.pyplot as plt
 
 from img_manager import corrector as corr
@@ -78,3 +79,22 @@ class BleedingCorrector(corr.GeneralCorrector):
         # TODO: test
         self.bleed_mean = valuesdict['bleed_mean']
         self.bleed_error = valuesdict['bleed_error']
+
+
+class ShiftCorrector(corr.GeneralCorrector):
+
+    def __init__(self, tvec=None):
+        self.tvec = tvec
+
+    def find_shift(self, master_stack, stack_to_move):
+        result = ird.translation(master_stack, stack_to_move)
+        self.tvec = result['tvec']
+
+    def correct(self, stack):
+        return ird.imreg.transform_img(stack, tvec=self.tvec, mode='nearest')
+
+    def to_dict(self):
+        return {'tvec': self.tvec}
+
+    def load_from_dict(self, parameter_dict):
+        self.tvec = parameter_dict['tvec']
