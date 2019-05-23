@@ -1,4 +1,5 @@
 import json
+import inspect
 import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
@@ -114,25 +115,25 @@ class Channel(object):
         self.stack_state.append('loaded')
 
     def add_background_corrector(self, background_corrector):
-        if not issubclass(type(background_corrector), GeneralCorrector):
+        if GeneralCorrector.__name__ not in [c.__name__ for c in inspect.getmro(type(background_corrector))]:
             raise TypeError('Not a child of GeneralCorrector')
 
         self.background_correctors.append(background_corrector)
 
     def add_bleaching_corrector(self, bleaching_corrector):
-        if not issubclass(type(bleaching_corrector), GeneralCorrector):
+        if GeneralCorrector.__name__ not in [c.__name__ for c in inspect.getmro(type(bleaching_corrector))]:
             raise TypeError('Not a child of GeneralCorrector')
 
         self.bleaching_correctors.append(bleaching_corrector)
 
     def add_shift_corrector(self, shift_corrector):
-        if not issubclass(type(shift_corrector), GeneralCorrector):
+        if GeneralCorrector.__name__ not in [c.__name__ for c in inspect.getmro(type(shift_corrector))]:
             raise TypeError('Not a child of GeneralCorrector')
 
         self.shift_correctors.append(shift_corrector)
 
     def add_bleeding_corrector(self, bleeding_corrector, source_channel):
-        if not issubclass(type(bleeding_corrector), GeneralCorrector):
+        if GeneralCorrector.__name__ not in [c.__name__ for c in inspect.getmro(type(bleeding_corrector))]:
             raise TypeError('Not a child of GeneralCorrector')
 
         self.bleeding_correctors.append((source_channel, bleeding_corrector))
