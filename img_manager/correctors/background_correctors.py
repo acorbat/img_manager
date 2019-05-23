@@ -3,10 +3,10 @@ import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
 
-from img_manager.corrector import *
+from img_manager import corrector as corr
 
 
-class VariableBackgroundCorrector(GeneralCorrector):
+class VariableBackgroundCorrector(corr.GeneralCorrector):
     """An image or stack image corrector for variable background correction. Parameters for correction can be modified
     and fit accordingly.
 

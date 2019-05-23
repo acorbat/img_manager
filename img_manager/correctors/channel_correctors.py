@@ -3,9 +3,10 @@ import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
 
-from img_manager.corrector import *
+from img_manager import corrector as corr
 
-class BleedingCorrector(GeneralCorrector):
+
+class BleedingCorrector(corr.GeneralCorrector):
 
     def __init__(self):
         # bleeding

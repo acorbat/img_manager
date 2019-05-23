@@ -114,25 +114,25 @@ class Channel(object):
         self.stack_state.append('loaded')
 
     def add_background_corrector(self, background_corrector):
-        if not issubclass(background_corrector, GeneralCorrector):
+        if not issubclass(type(background_corrector), GeneralCorrector):
             raise TypeError('Not a child of GeneralCorrector')
 
         self.background_correctors.append(background_corrector)
 
     def add_bleaching_corrector(self, bleaching_corrector):
-        if not issubclass(bleaching_corrector, GeneralCorrector):
+        if not issubclass(type(bleaching_corrector), GeneralCorrector):
             raise TypeError('Not a child of GeneralCorrector')
 
         self.bleaching_correctors.append(bleaching_corrector)
 
     def add_shift_corrector(self, shift_corrector):
-        if not issubclass(shift_corrector, GeneralCorrector):
+        if not issubclass(type(shift_corrector), GeneralCorrector):
             raise TypeError('Not a child of GeneralCorrector')
 
         self.shift_correctors.append(shift_corrector)
 
     def add_bleeding_corrector(self, bleeding_corrector, source_channel):
-        if not issubclass(bleeding_corrector, GeneralCorrector):
+        if not issubclass(type(bleeding_corrector), GeneralCorrector):
             raise TypeError('Not a child of GeneralCorrector')
 
         self.bleeding_correctors.append((source_channel, bleeding_corrector))
