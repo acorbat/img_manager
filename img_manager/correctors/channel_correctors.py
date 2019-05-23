@@ -62,4 +62,18 @@ class BleedingCorrector(GeneralCorrector):
             pp.savefig()
             plt.close()
 
+    def correct(self, stack_source, stack_to_correct):
+        """This function subtracts background from stack. time_step attribute is used."""
+        return self.correct_bleeding(stack_source, stack_to_correct)
 
+    def to_dict(self):
+        """Returns an OrderedDict with the parameters."""
+        # TODO: test
+        return {'bleed_mean': self.bleed_mean,
+                'bleed_error': self.bleed_error}
+
+    def load_from_dict(self, valuesdict):
+        """Loads the parameters from a saved OrderedDict"""
+        # TODO: test
+        self.bleed_mean = valuesdict['bleed_mean']
+        self.bleed_error = valuesdict['bleed_error']

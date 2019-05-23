@@ -3,6 +3,7 @@ import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
 
+from collections import OrderedDict
 from . import correctors
 
 
@@ -12,36 +13,29 @@ class CorrectorArmy(object):
 
     Attributes
     ----------
-    bkg_model : lmfit.Model class
-        The exponential model used to fit the dark noise images
-    bkg_params : lmfit.Parameters class
-        The parameters for the background correction
+
 
     Methods
     -------
-    bkg_exponential(x, amplitude, characteristic_time, constant)
-        Exponential function to be used in  background fitting
-    subtract_background(self, stack, time_step)
-        Subtracts background using the saved parameters from a stack of images
-    find_bkg_correction(self, stack, time_step, pp=None)
-        Loads a dark image stack and fits and saves the background correction parameters
-    bleaching_exponential(x, amplitude, characteristic_time, constant)
-        Exponential function to fit bleaching in time series
-    correct_bleaching(self, stack, time_step)
-        Corrects bleaching effects from a stack, considering time steps between images and using saved bleaching
-        parameters
-    find_bleaching(self, stack, time_step, pp=None)
-        Given a stack of images, it calculates sum of intensity per timepoint, fits the bleaching exponential curve,
-        finds the ideal parameters and saves them. If pp is given a PdfPages, images of fit are saved.
+
     """
 
     def __init__(self):
         """Return an image corrector with some initial parameters for background, bleaching and bleeding correction."""
 
-        self.channels = []
+        self.channels = OrderedDict()
 
-    # General
-    #########
+    def add_channel(self, channel):
+        if isinstance(channel, str):
+            channel = Channel(channel)
+
+        self.channels.update({channel.name: channel})
+
+    def to_dict(self):
+        channel_dict = {chan: self.channels[chan].to_dict() for chan in self.channels}
+
+        return channel_dict
+
     def save(self, path):
         """Save actual state of corrector to json.
 
@@ -51,10 +45,7 @@ class CorrectorArmy(object):
             path to file where corrector is to be saved
         """
         with open(str(path), 'w') as fp:
-            data = {'bkg': self.bkg_params.dumps(),
-                    'bleach': self.bleach_params.dumps(),
-                    'bleed': [self.bleed_mean, self.bleed_error]}
-            json.dump(data, fp)
+            json.dump(self.to_dict(), fp)
 
     def load(self, path):
         """Load parameters from json file to corrector.
@@ -64,6 +55,7 @@ class CorrectorArmy(object):
         path : path
             path to file where corrector is to be saved
         """
+        # TODO: Not implemented
         with open(str(path), 'r') as fp:
             data = json.load(fp)
 
@@ -71,7 +63,7 @@ class CorrectorArmy(object):
             self.bleach_params.loads(data['bleach'])
             self.bleed_mean, self.bleed_error = data['bleed']
 
-    def subtract_and_normalize(self, stack, time_step):
+    def run_correctors(self, stack, time_step):
         """Apply consecutively a background subtraction and a bleaching normalization.
 
         Parameters
@@ -86,11 +78,18 @@ class CorrectorArmy(object):
         stack_corrected : numpy.array
             Returns the corrected numpy.array for background and bleaching
         """
-        stack_corrected = self.subtract_background(stack, time_step)
+        for channel in self.channels:
+            channel.correct_background()
+            channel.correct_bleaching()
+            channel.correct_shift()
 
-        stack_corrected = self.correct_bleaching(stack_corrected, time_step)
+        # Implement bleeding correction should be separate as it happens after every channel is corrected for the rest.
+        # for channel in self.channels:
+        #     for source_channel, corrector in channel.bleeding_correctors:
+        #         corrector.correct(self.channels[source_channel].stack, channel.stack)
 
-        return stack_corrected
+    def __getitem__(self, item):
+        return self.channels[item]
 
 
 class Channel(object):
@@ -130,13 +129,55 @@ class Channel(object):
         if not issubclass(shift_corrector, GeneralCorrector):
             raise TypeError('Not a child of GeneralCorrector')
 
-        self.bleaching_correctors.append(shift_corrector)
+        self.shift_correctors.append(shift_corrector)
 
-    def add_bleeding_corrector(self, bleeding_corrector):
+    def add_bleeding_corrector(self, bleeding_corrector, source_channel):
         if not issubclass(bleeding_corrector, GeneralCorrector):
             raise TypeError('Not a child of GeneralCorrector')
 
-        self.bleaching_correctors.append(bleeding_corrector)
+        self.bleeding_correctors.append((source_channel, bleeding_corrector))
+
+    def correct_background(self):
+        for background_corrector in self.background_correctors:
+            self.stack = background_corrector.correct(self.stack)
+
+        self.stack_state.append('background corrected')
+
+    def correct_bleaching(self):
+        for bleaching_corrector in self.bleaching_correctors:
+            self.stack = bleaching_corrector.correct(self.stack)
+
+        self.stack_state.append('bleaching corrected')
+
+    def correct_shift(self):
+        for shift_corrector in self.shift_correctors:
+            self.stack = shift_corrector.correct(self.stack)
+
+        self.stack_state.append('shift corrected')
+
+    def correct_bleeding(self, source_stack):
+        # TODO: not well implemented
+        for bleed_corrector in self.bleeding_correctors:
+            self.stack = bleed_corrector.correct(source_stack, self.stack)
+
+        self.stack_state.append('bleeding corrected')
+
+    def to_dict(self):
+        background_dict = {n: this_corr.to_dict() for n, this_corr in enumerate(self.background_correctors)}
+        bleaching_dict = {n: this_corr.to_dict() for n, this_corr in enumerate(self.bleaching_correctors)}
+        shift_dict = {n: this_corr.to_dict() for n, this_corr in enumerate(self.shift_correctors)}
+        bleed_dict = {source_channel: this_corr.to_dict() for source_channel, this_corr in self.bleeding_correctors}
+
+        channel_dictionary = {'background': background_dict,
+                              'bleaching': bleaching_dict,
+                              'shift': shift_dict,
+                              'bleeding': bleed_dict}
+
+        return channel_dictionary
+
+    def load_from_dict(self):
+        # TODO: implement a load. How do we recognize which corrector load
+        pass
 
 
 class GeneralCorrector(object):
