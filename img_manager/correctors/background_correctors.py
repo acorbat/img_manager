@@ -147,3 +147,22 @@ class VariableBackgroundCorrector(corr.GeneralCorrector):
         """Loads the parameters from a saved OrderedDict"""
         # TODO: test
         self.bkg_params = self.bkg_model.make_params(valuesdict)
+
+
+class ConstantBackgroundCorrector(corr.GeneralCorrector):
+
+    def __init__(self, bkg_val=None):
+
+        self.bkg_value = bkg_val
+
+    def find_background(self, masked_stack, percentile=50):
+        self.bkg_value = np.nanpercentile(masked_stack, percentile)
+
+    def correct(self, stack):
+        return stack - self.bkg_value
+
+    def to_dict(self):
+        return {'bkg_value': self.bkg_value}
+
+    def load_from_dict(self, parameter_dict):
+        self.bkg_value = parameter_dict['bkg_value']
