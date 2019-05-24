@@ -91,7 +91,13 @@ class ShiftCorrector(corr.GeneralCorrector):
         self.tvec = result['tvec']
 
     def correct(self, stack):
-        return ird.imreg.transform_img(stack, tvec=self.tvec, mode='nearest')
+        if len(stack.shape) == 2:
+            stack = stack[np.newaxis, :]
+
+        for n, this_img in enumerate(stack):
+            stack[n] = ird.imreg.transform_img(this_img, tvec=self.tvec, mode='nearest')
+        
+        return stack
 
     def to_dict(self):
         return {'tvec': self.tvec}
