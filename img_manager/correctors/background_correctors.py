@@ -183,8 +183,19 @@ class IlluminationCorrector(corr.GeneralCorrector):
             stack[stack == self.overexposed_value] == np.nan
             stack[stack == self.underexposed_value] == np.nan
 
+        if len(self.illumination.shape) > 1:
+            # todo: only works if illumination is an array with shape attribute
+            if len(stack.shape) == 2:
+                stack = stack[np.newaxis, :]
+
+            for n, this_img in enumerate(stack):
+                stack[n] = this_img / self.illumination
+
+        else:
+            stack = stack / self.illumination
+
         # Normalize by illumination
-        return stack / self.illumination
+        return stack
 
     def to_dict(self):
         return {'illumination': self.illumination}
