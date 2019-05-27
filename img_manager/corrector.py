@@ -80,9 +80,9 @@ class CorrectorArmy(object):
             Returns the corrected numpy.array for background and bleaching
         """
         for channel in self.channels:
-            channel.correct_background()
-            channel.correct_bleaching()
-            channel.correct_shift()
+            self.channels[channel].correct_background()
+            self.channels[channel].correct_bleaching()
+            self.channels[channel].correct_shift()
 
         # Implement bleeding correction should be separate as it happens after every channel is corrected for the rest.
         # for channel in self.channels:
