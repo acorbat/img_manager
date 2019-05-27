@@ -1,10 +1,11 @@
-import json
+# import json
 import inspect
 import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
 
 from collections import OrderedDict
+from serialize import dump, load
 from . import correctors
 
 
@@ -46,7 +47,7 @@ class CorrectorArmy(object):
             path to file where corrector is to be saved
         """
         with open(str(path), 'w') as fp:
-            json.dump(self.to_dict(), fp)
+            dump(self.to_dict(), fp)
 
     def load(self, path):
         """Load parameters from json file to corrector.
@@ -58,7 +59,7 @@ class CorrectorArmy(object):
         """
         # TODO: Not implemented
         with open(str(path), 'r') as fp:
-            data = json.load(fp)
+            data = load(fp)
 
             self.bkg_params.loads(data['bkg'])
             self.bleach_params.loads(data['bleach'])
