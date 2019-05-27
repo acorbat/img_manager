@@ -46,8 +46,7 @@ class CorrectorArmy(object):
         path : path
             path to file where corrector is to be saved
         """
-        with open(str(path), 'w') as fp:
-            dump(self.to_dict(), fp)
+        dump(self.to_dict(), path)
 
     def load(self, path):
         """Load parameters from json file to corrector.
@@ -58,12 +57,11 @@ class CorrectorArmy(object):
             path to file where corrector is to be saved
         """
         # TODO: Not implemented
-        with open(str(path), 'r') as fp:
-            data = load(fp)
+        data = load(path)
 
-            self.bkg_params.loads(data['bkg'])
-            self.bleach_params.loads(data['bleach'])
-            self.bleed_mean, self.bleed_error = data['bleed']
+        self.bkg_params.loads(data['bkg'])
+        self.bleach_params.loads(data['bleach'])
+        self.bleed_mean, self.bleed_error = data['bleed']
 
     def run_correctors(self):
         """Apply consecutively a background subtraction and a bleaching normalization.
