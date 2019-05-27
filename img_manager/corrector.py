@@ -64,7 +64,7 @@ class CorrectorArmy(object):
             self.bleach_params.loads(data['bleach'])
             self.bleed_mean, self.bleed_error = data['bleed']
 
-    def run_correctors(self, stack, time_step):
+    def run_correctors(self):
         """Apply consecutively a background subtraction and a bleaching normalization.
 
         Parameters
