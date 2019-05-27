@@ -96,7 +96,7 @@ class ShiftCorrector(corr.GeneralCorrector):
 
         for n, this_img in enumerate(stack):
             stack[n] = ird.imreg.transform_img(this_img, tvec=self.tvec, mode='nearest')
-        
+
         return stack
 
     def to_dict(self):

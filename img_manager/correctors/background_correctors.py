@@ -166,3 +166,28 @@ class ConstantBackgroundCorrector(corr.GeneralCorrector):
 
     def load_from_dict(self, parameter_dict):
         self.bkg_value = parameter_dict['bkg_value']
+
+class IlluminationCorrector(corr.GeneralCorrector):
+
+    def __init__(self, illumination=None, replace_exposure=True):
+
+        self.illumination = illumination
+        self.replace_exposure = replace_exposure
+        self.overexposed_value = 4095
+        self.underexposed_value = 0
+
+    def correct(self, stack):
+
+        # ignore over or underexposed pixels
+        if self.replace_exposure:
+            stack[stack == self.overexposed_value] == np.nan
+            stack[stack == self.underexposed_value] == np.nan
+
+        # Normalize by illumination
+        return stack / self.illumination
+
+    def to_dict(self):
+        return {'illumination': self.illumination}
+
+    def load_from_dict(self, parameter_dict):
+        self.illumination = parameter_dict['illumination']
