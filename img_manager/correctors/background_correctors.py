@@ -159,7 +159,7 @@ class ConstantBackgroundCorrector(corr.GeneralCorrector):
         self.bkg_value = np.nanpercentile(masked_stack, percentile)
 
     def correct(self, stack):
-        return stack - self.bkg_value
+        return np.clip(stack - self.bkg_value, 0, np.inf)
 
     def to_dict(self):
         return {'bkg_value': self.bkg_value}
@@ -180,8 +180,8 @@ class IlluminationCorrector(corr.GeneralCorrector):
 
         # ignore over or underexposed pixels
         if self.replace_exposure:
-            stack[stack == self.overexposed_value] == np.nan
-            stack[stack == self.underexposed_value] == np.nan
+            stack[stack == self.overexposed_value] = np.nan
+            stack[stack == self.underexposed_value] = np.nan
 
         if len(self.illumination.shape) > 1:
             # todo: only works if illumination is an array with shape attribute
