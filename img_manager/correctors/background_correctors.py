@@ -167,6 +167,7 @@ class ConstantBackgroundCorrector(corr.GeneralCorrector):
     def load_from_dict(self, parameter_dict):
         self.bkg_value = parameter_dict['bkg_value']
 
+
 class IlluminationCorrector(corr.GeneralCorrector):
 
     def __init__(self, illumination=None, replace_exposure=True):
@@ -202,3 +203,28 @@ class IlluminationCorrector(corr.GeneralCorrector):
 
     def load_from_dict(self, parameter_dict):
         self.illumination = parameter_dict['illumination']
+
+
+class ExposureCorrector(corr.GeneralCorrector):
+
+    def __init__(self, bit=12):
+        self.bit = bit
+        self.max_value = 2 ** self.bit - 1
+        self.min_value = 0
+        self.replace_value = np.nan
+
+    def correct(self, stack):
+        stack[stack == self.max_value] = self.replace_value
+        stack[stack == self.min_value] = self.replace_value
+
+    def to_dict(self):
+        return {'bit': self.bit,
+                'max_value': self.max_value,
+                'min_value': self.min_value,
+                'replace_value': self.replace_value}
+
+    def load_from_dict(self, parameter_dict):
+        self.bit = parameter_dict['bit']
+        self.max_value = parameter_dict['max_value']
+        self.min_value = parameter_dict['min_value']
+        self.replace_value = parameter_dict['replace_value']
