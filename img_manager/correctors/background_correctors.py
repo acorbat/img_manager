@@ -159,7 +159,13 @@ class ConstantBackgroundCorrector(corr.GeneralCorrector):
         self.bkg_value = np.nanpercentile(masked_stack, percentile)
 
     def correct(self, stack):
-        return np.clip(stack - self.bkg_value, 0, np.inf)
+        if isinstance(self.bkg_value, (int, float)):
+            return np.clip(stack - self.bkg_value, 0, np.inf)
+        if len(self.bkg_value.shape) == 1:
+            for n, (this_img, this_bkg) in enumerate(zip(stack, self.bkg_value)):
+                stack[n] = this_img / this_bkg
+
+        return stack
 
     def to_dict(self):
         return {'bkg_value': self.bkg_value}
