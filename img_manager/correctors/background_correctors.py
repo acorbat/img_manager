@@ -223,6 +223,8 @@ class ExposureCorrector(corr.GeneralCorrector):
         stack[stack == self.max_value] = self.replace_value
         stack[stack == self.min_value] = self.replace_value
 
+        return stack
+
     def to_dict(self):
         return {'bit': self.bit,
                 'max_value': self.max_value,
