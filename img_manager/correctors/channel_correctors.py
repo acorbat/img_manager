@@ -88,7 +88,7 @@ class ShiftCorrector(corr.GeneralCorrector):
 
     def find_shift(self, master_stack, stack_to_move):
         result = ird.translation(master_stack, stack_to_move)
-        self.tvec = result['tvec']
+        self.tvec = [int(this) for this in result['tvec']]
 
     def correct(self, stack):
         if len(stack.shape) == 2:
