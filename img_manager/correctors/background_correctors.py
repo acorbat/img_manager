@@ -2,13 +2,14 @@ import json
 import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
+from cellment import background
 
 from img_manager import corrector as corr
 
 
 class VariableBackgroundCorrector(corr.GeneralCorrector):
-    """An image or stack image corrector for variable background correction. Parameters for correction can be modified
-    and fit accordingly.
+    """An image or stack image corrector for variable background correction.
+    Parameters for correction can be modified and fit accordingly.
 
     Attributes
     ----------
@@ -24,11 +25,13 @@ class VariableBackgroundCorrector(corr.GeneralCorrector):
     subtract_background(self, stack, time_step)
         Subtracts background using the saved parameters from a stack of images
     find_bkg_correction(self, stack, time_step, pp=None)
-        Loads a dark image stack and fits and saves the background correction parameters
+        Loads a dark image stack and fits and saves the background correction
+        parameters
     """
 
     def __init__(self):
-        """Return an image corrector with some initial parameters for background, bleaching and blleding correction."""
+        """Return an image corrector with some initial parameters for
+        background, bleaching and blleding correction."""
         # background
         self.bkg_model = lm.Model(self.bkg_exponential, independent_vars=['x'])
         self.bkg_params = self.bkg_model.make_params(amplitude=9.30909784,
@@ -57,13 +60,14 @@ class VariableBackgroundCorrector(corr.GeneralCorrector):
 
         Returns
         -------
-        Depending on input, returns value, list or array of background noise for the input timepoints
+        Depending on input, returns value, list or array of background noise
+        for the input timepoints
         """
         return -amplitude * np.exp(-x / characteristic_time) + constant
 
     def subtract_background(self, stack, time_step):
-        """Subtracts background from a stack, considering time steps between images and using saved background
-        parameters.
+        """Subtracts background from a stack, considering time steps between
+        images and using saved background parameters.
 
         Parameters
         ----------
@@ -85,8 +89,9 @@ class VariableBackgroundCorrector(corr.GeneralCorrector):
         return stack_corrected
 
     def find_bkg_correction(self, stack, time_step, pp=None):
-        """Given a dark noise stack, it calculates mean per timepoint, fits the parameters and saves them. If pp is
-        given a PdfPages, images of fit are saved.
+        """Given a dark noise stack, it calculates mean per timepoint, fits the
+         parameters and saves them. If pp is given a PdfPages, images of fit
+         are saved.
 
         If fit is not converging, you can manually modify parameters with:
             >>> corrector.bkg_params['constant'].set(value=40)
@@ -157,6 +162,46 @@ class ConstantBackgroundCorrector(corr.GeneralCorrector):
 
     def find_background(self, masked_stack, percentile=50):
         self.bkg_value = np.nanpercentile(masked_stack, percentile)
+
+    def correct(self, stack):
+        if isinstance(self.bkg_value, (int, float)):
+            return np.clip(stack - self.bkg_value, 0, np.inf)
+        if len(self.bkg_value.shape) == 1:
+            for n, (this_img, this_bkg) in enumerate(zip(stack, self.bkg_value)):
+                stack[n] = np.clip(this_img - this_bkg, 0, np.inf)
+
+        return stack
+
+    def to_dict(self):
+        return {'bkg_value': self.bkg_value}
+
+    def load_from_dict(self, parameter_dict):
+        self.bkg_value = parameter_dict['bkg_value']
+
+
+class SMOBackgroundCorrector(corr.GeneralCorrector):
+
+    def __init__(self, bkg_val=None, sigma=2, size=51, percentile=0.5):
+        super().__init__()
+        self.bkg_value = bkg_val
+        self.sigma = sigma
+        self.size = size
+        self.percentile = percentile
+
+    def find_background(self, stack):
+        self.bkg_value = self._find_background(stack)
+
+    def _find_background(self, stack):
+        if len(stack.shape) > 2:
+            bkg = np.asarray([
+                self._find_background(this)
+                for this in stack])
+
+        else:
+            bkg = background.bg_rv(stack,
+                                   self.sigma, self.size).ppf(self.percentile)
+
+        return bkg
 
     def correct(self, stack):
         if isinstance(self.bkg_value, (int, float)):
