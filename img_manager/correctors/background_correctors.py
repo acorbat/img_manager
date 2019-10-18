@@ -163,7 +163,7 @@ class ConstantBackgroundCorrector(corr.GeneralCorrector):
             return np.clip(stack - self.bkg_value, 0, np.inf)
         if len(self.bkg_value.shape) == 1:
             for n, (this_img, this_bkg) in enumerate(zip(stack, self.bkg_value)):
-                stack[n] = this_img / this_bkg
+                stack[n] = np.clip(this_img - this_bkg, 0, np.inf)
 
         return stack
 
