@@ -6,14 +6,46 @@ import matplotlib.pyplot as plt
 from img_manager import corrector as corr
 
 class BleachingCorrector(corr.GeneralCorrector):
+    """Bleaching Corrector estimates bleaching by fitting an exponential
+    function to data and then divides a stack by this values to correct for
+    bleaching.
+
+    Attributes
+    ----------
+    bleach_model : lmfit.Model class
+        The exponential model used to fit the dark noise images
+    bleach_params : lmfit.Parameters class
+        The parameters for the background correction
+
+    Methods
+    -------
+    bleaching_exponential(x, amplitude, characteristic_time, constant)
+        Exponential function to be used in bleaching fitting
+    correct_bleaching(self, stack)
+        Corrects bleaching effects from a stack, considering time steps
+        between images and using saved bleaching parameters.
+    find_bleaching(self, stack, pp=None)
+        Given a stack of images, it calculates sum of intensity per
+        timepoint, fits the bleaching exponential curve, finds the ideal
+        parameters and saves them. If pp is given a PdfPages, images of fit are
+        saved.
+    correct(stack)
+        This function corrects bleaching from stack.
+    to_dict()
+        Returns an OrderedDict with the parameters.
+    load_from_dict(path)
+        Loads the parameters from a saved OrderedDict
+    """
 
     def __init__(self):
+
+        self.corrector_species = 'BleachingCorrector'
+
         # bleaching
         self.bleach_model = lm.Model(self.bleaching_exponential, independent_vars=['x'])
         self.bleach_params = self.bleach_model.make_params(amplitude=1.23445829e+06,
                                                            characteristic_time=5.91511605e+02,
                                                            constant=1.33089950e-04)
-        self.time_step = None
 
     # Bleaching Correction
     ######################
@@ -34,36 +66,37 @@ class BleachingCorrector(corr.GeneralCorrector):
 
         Returns
         -------
-        Depending on input, returns value, list or array of intensity values for the input timepoints
+        Depending on input, returns value, list or array of intensity values
+        for the input timepoints
         """
         return amplitude * np.exp(-x / characteristic_time) + constant
 
-    def correct_bleaching(self, stack, time_step):
-        """Corrects bleaching effects from a stack, considering time steps between images and using saved bleaching
-        parameters.
+    def correct_bleaching(self, stack):
+        """Corrects bleaching effects from a stack, considering time steps
+        between images and using saved bleaching parameters.
 
         Parameters
         ----------
         stack : numpy.array
             Time series of images to be corrected
-        time_step
-            Time step between acquired images
 
         Returns
         -------
             Returns the corrected stack
         """
         stack_corrected = stack.copy()
-        times = np.arange(0, time_step * len(stack), time_step)
+        times = np.arange(0, len(stack))
         bleached_intensity = self.bleach_model.eval(self.bleach_params, x=times)
         for ind, frame in enumerate(stack_corrected):
             stack_corrected[ind] = frame / bleached_intensity[ind]
 
         return stack_corrected
 
-    def find_bleaching(self, stack, time_step, pp=None):
-        """Given a stack of images, it calculates sum of intensity per timepoint, fits the bleaching exponential curve,
-        finds the ideal parameters and saves them. If pp is given a PdfPages, images of fit are saved.
+    def find_bleaching(self, stack, pp=None):
+        """Given a stack of images, it calculates sum of intensity per
+        timepoint, fits the bleaching exponential curve, finds the ideal
+        parameters and saves them. If pp is given a PdfPages, images of fit are
+         saved.
 
         The set of images given should already be background subtracted.
 
@@ -82,12 +115,13 @@ class BleachingCorrector(corr.GeneralCorrector):
         pp : PdfPages
             Images of fitting are saved in this pdf
         """
-        times = np.arange(0, time_step * (len(stack) + 1), time_step)[0:len(stack)]
+        times = np.arange(0, (len(stack) + 1))[0:len(stack)]
 
         bleach_stack = stack.copy()
         total_intensity = [np.nansum(this_stack) for this_stack in bleach_stack]
 
-        result = self.bleach_model.fit(total_intensity, params=self.bleach_params, x=times)
+        result = self.bleach_model.fit(total_intensity,
+                                       params=self.bleach_params, x=times)
 
         for key in result.best_values.keys():
             self.bleach_params[key].set(value=result.best_values[key])
@@ -112,15 +146,16 @@ class BleachingCorrector(corr.GeneralCorrector):
             plt.close()
 
     def correct(self, stack):
-        """This function subtracts background from stack. time_step attribute is used."""
-        return self.correct_bleaching(stack, self.time_step)
+        """This function corrects bleaching from stack."""
+        return self.correct_bleaching(stack)
 
     def to_dict(self):
         """Returns an OrderedDict with the parameters."""
         # TODO: test
-        return self.bleach_params.valuesdict()
+        return {'corrector_species': self.corrector_species,
+                'params': self.bleach_params.valuesdict()}
 
     def load_from_dict(self, valuesdict):
         """Loads the parameters from a saved OrderedDict"""
         # TODO: test
-        self.bleach_params = self.bleach_params.make_params(valuesdict)
+        self.bleach_params = self.bleach_params.make_params(valuesdict['params'])
