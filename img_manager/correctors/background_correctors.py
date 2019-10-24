@@ -1,4 +1,3 @@
-import json
 import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
@@ -17,6 +16,8 @@ class VariableBackgroundCorrector(corr.GeneralCorrector):
         The exponential model used to fit the dark noise images
     bkg_params : lmfit.Parameters class
         The parameters for the background correction
+    time_step : float, scalar
+        Time step between subsequent images
 
     Methods
     -------
@@ -27,12 +28,21 @@ class VariableBackgroundCorrector(corr.GeneralCorrector):
     find_bkg_correction(self, stack, time_step, pp=None)
         Loads a dark image stack and fits and saves the background correction
         parameters
+    correct(stack)
+        This function subtracts background from stack. time_step
+        attribute is used.
+    to_dict()
+        Returns an OrderedDict with the parameters.
+    load_from_dict(path)
+        Loads the parameters from a saved OrderedDict
     """
 
     def __init__(self):
         """Return an image corrector with some initial parameters for
         background, bleaching and blleding correction."""
         # background
+        self.corrector_species = 'VariableBackgroundCorrector'
+
         self.bkg_model = lm.Model(self.bkg_exponential, independent_vars=['x'])
         self.bkg_params = self.bkg_model.make_params(amplitude=9.30909784,
                                                      characteristic_time=152.75328323,
@@ -140,30 +150,69 @@ class VariableBackgroundCorrector(corr.GeneralCorrector):
             plt.close()
 
     def correct(self, stack):
-        """This function subtracts background from stack. time_step attribute is used."""
+        """This function subtracts background from stack. time_step attribute
+        is used."""
         return self.subtract_background(stack, self.time_step)
 
     def to_dict(self):
         """Returns an OrderedDict with the parameters."""
         # TODO: test
-        return self.bkg_params.valuesdict()
+        return {'corrector_species': self.corrector_species,
+                'params': self.bkg_params.valuesdict()}
 
     def load_from_dict(self, valuesdict):
         """Loads the parameters from a saved OrderedDict"""
         # TODO: test
-        self.bkg_params = self.bkg_model.make_params(valuesdict)
+        self.bkg_params = self.bkg_model.make_params(valuesdict['params'])
 
 
 class ConstantBackgroundCorrector(corr.GeneralCorrector):
+    """Constant background corrector. Subtracts a constant value from images.
+    If bkg_value is an array, it subtracts a different value from each frame.
+
+    Attributes
+    ----------
+    bkg_value : int, float or numpy.ndarray
+        value(s) to subtract from every (each) frame
+
+    Methods
+    -------
+    find_background(masked_stack, percentile=50)
+
+    """
 
     def __init__(self, bkg_val=None):
+        self.corrector_species = 'ConstantBackgroundCorrector'
 
         self.bkg_value = bkg_val
 
     def find_background(self, masked_stack, percentile=50):
+        """Finds the background using the percentile of the masked stack.
+
+        Parameters
+        ----------
+        masked_stack : numpy.ndarray
+            stack of images that have NaNs where signal is present.
+        percentile : 0 to 100 int (default=50)
+            Percentile to be used as background value.
+        """
         self.bkg_value = np.nanpercentile(masked_stack, percentile)
 
     def correct(self, stack):
+        """Subtracts the background from the stack using bkg_value. If
+        bkg_value is an array, it must have the same length as stack. Results
+        are clipped so that no value is below 0.
+
+        Parameters
+        ----------
+        stack : numpy.ndarray
+            Stack to be corrected
+
+        Returns
+        -------
+        stack : numpy.ndarray
+            Corrected stack
+        """
         if isinstance(self.bkg_value, (int, float)):
             return np.clip(stack - self.bkg_value, 0, np.inf)
         if len(self.bkg_value.shape) == 1:
@@ -173,25 +222,64 @@ class ConstantBackgroundCorrector(corr.GeneralCorrector):
         return stack
 
     def to_dict(self):
-        return {'bkg_value': self.bkg_value}
+        """Generates a dictionary with the attributes of the corrector"""
+        return {'corrector_species': self.corrector_species,
+                'bkg_value': self.bkg_value}
 
     def load_from_dict(self, parameter_dict):
+        """Loads parameter from dictionary for creation
+
+        Parameters
+        ----------
+        parameter_dict : dictionary
+            Dictionary with bkg_value attribute to load
+        """
         self.bkg_value = parameter_dict['bkg_value']
 
 
 class SMOBackgroundCorrector(corr.GeneralCorrector):
+    """Uses the SMOperator to estimate background and then subtracts it from
+    images. Results are clipped so that no value is below 0.
+
+    Attributes
+    ----------
+    corrector_species : str
+        Name of the species to rebuild it.
+    bkg_value : float, int, numpy.ndarray
+        Value(s) of background to subtract from stack
+    sigma : scalar (default=2)
+        width of gaussian to use for the SMOperator
+    size : int (default=51)
+        size of window to use for the SMOperator
+    percentile : float (default=0.5)
+        Percentile to use as background from the background distribution
+        (between 0 and 1)
+
+    Methods
+    -------
+    find_background(stack)
+        Uses SMO and parameters to find the background in the given stack.
+    correct(stack)
+        Subtracts background from the given stack.
+    load_from_dict(parameter_dict)
+        Loads parameters from dictionary.
+    """
 
     def __init__(self, bkg_val=None, sigma=2, size=51, percentile=0.5):
-        super().__init__()
+
+        self.corrector_species = 'SMOBackgroundCorrector'
+
         self.bkg_value = bkg_val
         self.sigma = sigma
         self.size = size
         self.percentile = percentile
 
     def find_background(self, stack):
+        """Uses SMO and parameters to find the background in the given stack."""
         self.bkg_value = self._find_background(stack)
 
     def _find_background(self, stack):
+        """Recursively finds background in each frame."""
         if len(stack.shape) > 2:
             bkg = np.asarray([
                 self._find_background(this)
@@ -204,6 +292,7 @@ class SMOBackgroundCorrector(corr.GeneralCorrector):
         return bkg
 
     def correct(self, stack):
+        """Subtracts background from the given stack."""
         if isinstance(self.bkg_value, (int, float)):
             return np.clip(stack - self.bkg_value, 0, np.inf)
         if len(self.bkg_value.shape) == 1:
@@ -213,28 +302,47 @@ class SMOBackgroundCorrector(corr.GeneralCorrector):
         return stack
 
     def to_dict(self):
-        return {'bkg_value': self.bkg_value}
+        """Generates a dictionary with the attributes."""
+        return {'corrector_species': self.corrector_species,
+                'bkg_value': self.bkg_value,
+                'sigma': self.sigma,
+                'size': self.size,
+                'percentile': self.percentile}
 
     def load_from_dict(self, parameter_dict):
+        """Loads parameters from dictionary."""
         self.bkg_value = parameter_dict['bkg_value']
+        self.sigma = parameter_dict['sigma']
+        self.size = parameter_dict['size']
+        self.percentile = parameter_dict['percentile']
 
 
 class IlluminationCorrector(corr.GeneralCorrector):
+    """Corrects for inhomogeneous illumination by division.
 
-    def __init__(self, illumination=None, replace_exposure=True):
+    Attributes
+    ----------
+    illumination : numpy.ndarray
+        Image of homogeneous sample.
+
+    Methods
+    -------
+    correct(stack)
+        Corrects stack for inhomogeneous illumination.
+    to_dict()
+        Returns a dictionary with the image used for correction.
+    load_from_dict(parameter_dict)
+        Loads the parameters from a dictionary.
+    """
+
+    def __init__(self, illumination=None):
+
+        self.corrector_species = 'IlluminationCorrector'
 
         self.illumination = illumination
-        self.replace_exposure = replace_exposure
-        self.overexposed_value = 4095
-        self.underexposed_value = 0
 
     def correct(self, stack):
-
-        # ignore over or underexposed pixels
-        if self.replace_exposure:
-            stack[stack == self.overexposed_value] = np.nan
-            stack[stack == self.underexposed_value] = np.nan
-
+        """Corrects stack for inhomogeneous illumination."""
         if len(self.illumination.shape) > 1:
             # todo: only works if illumination is an array with shape attribute
             if len(stack.shape) == 2:
@@ -250,13 +358,39 @@ class IlluminationCorrector(corr.GeneralCorrector):
         return stack
 
     def to_dict(self):
-        return {'illumination': self.illumination}
+        """Returns a dictionary with the image used for correction."""
+        # TODO: should be saving the path to the image or sth else.
+        return {'corrector_species': self.corrector_species,
+                'illumination': self.illumination}
 
     def load_from_dict(self, parameter_dict):
+        """Loads the parameters from a dictionary."""
         self.illumination = parameter_dict['illumination']
 
 
 class ExposureCorrector(corr.GeneralCorrector):
+    """Masks as NaNs over and underexposed pixels.
+
+    Attributes
+    ----------
+    bit : int
+        Camera bit to estimate maximum value. Default is 2
+    max_value : int
+        Saturation value for image. Is estimated from bit
+    min_value : int
+        Minimum value of image. default is 0
+    replace_value : float
+        Value to use as replacement. Default is np.nan
+
+    Methods
+    -------
+    correct(stack)
+        Replaces over and under exposed pixels with replace_value
+    to_dict()
+        Returns a dictionary with parameters used for correction.
+    load_from_dict(parameter_dict)
+        Loads the parameters from a dictionary.
+    """
 
     def __init__(self, bit=12):
         self.bit = bit
@@ -265,18 +399,22 @@ class ExposureCorrector(corr.GeneralCorrector):
         self.replace_value = np.nan
 
     def correct(self, stack):
+        """Replaces over and under exposed pixels with replace_value"""
         stack[stack == self.max_value] = self.replace_value
-        stack[stack == self.min_value] = self.replace_value
+        stack[stack < self.min_value] = self.replace_value
 
         return stack
 
     def to_dict(self):
-        return {'bit': self.bit,
+        """Returns a dictionary with parameters used for correction."""
+        return {'corrector_species': self.corrector_species,
+                'bit': self.bit,
                 'max_value': self.max_value,
                 'min_value': self.min_value,
                 'replace_value': self.replace_value}
 
     def load_from_dict(self, parameter_dict):
+        """Loads the parameters from a dictionary."""
         self.bit = parameter_dict['bit']
         self.max_value = parameter_dict['max_value']
         self.min_value = parameter_dict['min_value']

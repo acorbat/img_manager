@@ -34,7 +34,8 @@ class CorrectorArmy(object):
     """
 
     def __init__(self):
-        """Return an image corrector with some initial parameters for background, bleaching and bleeding correction."""
+        """Return an image corrector with some initial parameters for
+        background, bleaching and bleeding correction."""
 
         self.channels = OrderedDict()
 
@@ -128,23 +129,31 @@ class Channel(object):
     stack_state : list
         list of applied procedures on stack
 
-    load_stack(stack) : Load a stack to the channel. It restarts state
-        variables.
-    add_background_corrector(background_corrector) : Adds a background
-        corrector only if it is a child of GeneralCorrector
-    add_bleaching_corrector(background_corrector) : Adds a background corrector
-        only if it is a child of GeneralCorrector
-    add_shift_corrector(shift_corrector) : Adds a shift corrector only if it is
-        a child of GeneralCorrector
-    add_bleeding_corrector(bleeding_corrector, source_channel) : Adds a
-        bleeding corrector only if it is a child of GeneralCorrector
-    correct_background() : Runs all the background correctors in channel.
-    correct_bleaching() : Runs all the bleaching correctors in channel.
-    correct_shift() : Runs all the shift correctors in channel.
-    correct_bleeding() : Runs all the bleeding correctors in channel.
-    to_dict() : Creates a dictionary enumerating every corrector of each kind
-        and where each value is the dictionary obtained from the corrector.
-    load_from_dict(path) : Not Implemented Yet
+    Methods
+    -------
+    load_stack(stack)
+        Load a stack to the channel. It restarts state variables.
+    add_background_corrector(background_corrector)
+        Adds a background corrector only if it is a child of GeneralCorrector
+    add_bleaching_corrector(background_corrector)
+        Adds a background corrector only if it is a child of GeneralCorrector
+    add_shift_corrector(shift_corrector)
+        Adds a shift corrector only if it is a child of GeneralCorrector
+    add_bleeding_corrector(bleeding_corrector, source_channel)
+        Adds a bleeding corrector only if it is a child of GeneralCorrector
+    correct_background()
+        Runs all the background correctors in channel.
+    correct_bleaching()
+        Runs all the bleaching correctors in channel.
+    correct_shift()
+        Runs all the shift correctors in channel.
+    correct_bleeding()
+        Runs all the bleeding correctors in channel.
+    to_dict()
+        Creates a dictionary enumerating every corrector of each kind and where
+         each value is the dictionary obtained from the corrector.
+    load_from_dict(path)
+        Not Implemented Yet
     """
 
     def __init__(self, name):
