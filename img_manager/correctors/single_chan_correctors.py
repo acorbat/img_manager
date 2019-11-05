@@ -1,6 +1,7 @@
 import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
+import imreg_dft as ird
 from cellment import background
 
 from img_manager import corrector as corr
@@ -575,3 +576,73 @@ class BleachingCorrector(corr.GeneralCorrector):
         """Loads the parameters from a saved OrderedDict"""
         # TODO: test
         self.bleach_params = self.bleach_params.make_params(valuesdict['params'])
+
+
+class ShiftCorrector(corr.GeneralCorrector):
+    """Estimates the shift between two channels using the image registration
+    package (correlation) and corrects the shift of channels.
+
+    Attributes
+    ----------
+    tvec : tuple
+        vector to use as shift between channels
+
+    Methods
+    -------
+    find_shift(master_stack, stack_to_move)
+        Finds the necessary shift to correct shift_to_move in order to match
+        master stack.
+    correct(stack)
+        Shifts the given stack of images according to tvec.
+    to_dict()
+        Returns a dictionary with the parameters.
+    load_from_dict(parameter_dict)
+        Loads the parameters from a saved dictionary.
+    """
+    def __init__(self, tvec=None):
+        self.corrector_species = 'ShiftCorrector'
+        self.tvec = tvec
+
+    def find_shift(self, master_stack, stack_to_move):
+        """Finds the necessary shift to correct shift_to_move in order to match
+        master stack.
+
+        Parameters
+        ----------
+        master_stack : numpy.ndarray 2D
+            Image to use as reference
+        stack_to_move : numpy.ndarray 2D
+            Image that is to be shifted to match the reference
+        """
+        result = ird.translation(master_stack, stack_to_move)
+        self.tvec = [int(this) for this in result['tvec']]
+
+    def correct(self, stack):
+        """Shifts the given stack of images according to tvec.
+
+        Parameters
+        ----------
+        stack : numpy.ndarray
+            stack of images to be shifted
+
+        Returns
+        -------
+        stack : numpy.ndarray
+            Shifted stack of images
+        """
+        if len(stack.shape) == 2:
+            stack = stack[np.newaxis, :]
+
+        for n, this_img in enumerate(stack):
+            stack[n] = ird.imreg.transform_img(this_img, tvec=self.tvec, mode='nearest')
+
+        return stack
+
+    def to_dict(self):
+        """Returns a dictionary with the parameters."""
+        return {'corrector_species': 'ShiftCorrector',
+                'tvec': self.tvec}
+
+    def load_from_dict(self, parameter_dict):
+        """Loads the parameters from a saved dictionary."""
+        self.tvec = parameter_dict['tvec']
