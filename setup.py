@@ -9,7 +9,7 @@ setup(
     author='Agustin Corbat',
     author_email='acorbat@df.uba.ar',
     description='Image IO and correction.',
-    install_requires=['numpy', 'collection', 'pathfile', 'datetime',
+    install_requires=['numpy', 'collections', 'pathfile', 'datetime',
                       'matplotlib', 'lmfit', 'imreg_dft', 'tifffile',
                       'oiffile'],
     dependency_links=['https://github.com/maurosilber/cellment.git',
