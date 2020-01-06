@@ -2,13 +2,13 @@ import pathlib
 
 from datetime import datetime
 
-from img_manager import oiffile as oif
-from img_manager import tifffile as tif
+import oiffile as oif
+import tifffile as tif
 
 
 class FV1000(oif.OifFile):
-    """FV1000 saves stacks and images in OifFile format and some of the most used functionalities need to be added to
-    its methods.
+    """FV1000 saves stacks and images in OifFile format and some of the most
+    used functionalities need to be added to its methods.
 
     Methods
     -------
@@ -31,12 +31,14 @@ class FV1000(oif.OifFile):
     transpose_axes(self)
         Loads the stack in the order specified by axes
     get_next_path(self)
-        If it's a Time Controller automatically generated set, it gets the path for the next set of images
+        If it's a Time Controller automatically generated set, it gets the path
+        for the next set of images
     get_last_path(self)
-        It gets the last path for the existing images generated automatically by Time Controller
+        It gets the last path for the existing images generated automatically
+        by Time Controller
     get_other_path(self, kind='ble')
-        For bleaching experiments, it changes the second to last underscored separated part for kind and gets the last
-        path for that image
+        For bleaching experiments, it changes the second to last underscored
+        separated part for kind and gets the last path for that image
     """
 
     # Usually used getters for stack parameters
@@ -51,7 +53,8 @@ class FV1000(oif.OifFile):
 
     def get_z_step(self):
         """Get the pixel size in z direction in microns"""
-        return self.mainfile['Axis 3 Parameters Common']['Interval'] / 1000  # It was in nanometers
+        # It was in nanometers
+        return self.mainfile['Axis 3 Parameters Common']['Interval'] / 1000
 
     def get_t_step(self):
         """Get time step in seconds"""
