@@ -1,12 +1,8 @@
-# import json
 import inspect
 import numpy as np
-import lmfit as lm
-import matplotlib.pyplot as plt
 
 from collections import OrderedDict
 from serialize import dump, load
-from . import correctors
 
 
 class CorrectorArmy(object):

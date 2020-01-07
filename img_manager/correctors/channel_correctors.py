@@ -1,6 +1,4 @@
-import json
 import numpy as np
-import lmfit as lm
 import matplotlib.pyplot as plt
 
 from img_manager import corrector as corr
