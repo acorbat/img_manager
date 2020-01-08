@@ -62,17 +62,24 @@ class LSM880(CziFile):
 
         Parameters
         ----------
-        block_index : int
-            index of block to retrieve
+        block_index : int, iterable
+            index of block or blocks to retrieve
         Returns
         -------
         blocks of an image.
         """
-        block_iterator = self.filtered_subblock_directory
-        slice_ = islice(block_iterator, block_index, None)
-        block = next(slice_, None)
-        block = block.data_segment().data()
-        block = np.squeeze(block)
+        if isinstance(block_index, (list, tuple, np.ndarray)):
+            block = []
+            for this_index in block_index:
+                block.append(self.block(this_index))
+            block = np.asarray(block)
+
+        else:
+            block_iterator = self.filtered_subblock_directory
+            slice_ = islice(block_iterator, block_index, None)
+            block = next(slice_, None)
+            block = block.data_segment().data()
+            block = np.squeeze(block)
 
         return block
 
