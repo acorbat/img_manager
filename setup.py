@@ -10,7 +10,7 @@ setup(
     author_email='acorbat@df.uba.ar',
     description='Image IO and correction.',
     install_requires=['numpy', 'datetime', 'matplotlib', 'lmfit', 'imreg_dft',
-                      'tifffile', 'oiffile', 'xarray'],
+                      'tifffile', 'oiffile', 'czifile', 'xarray'],
     dependency_links=['https://github.com/maurosilber/cellment.git',
                       'https://github.com/hgrecco/serialize.git']
 )
