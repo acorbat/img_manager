@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 from itertools import islice
+from collections.abc import Iterable
 
 from czifile import CziFile
 
@@ -68,7 +69,7 @@ class LSM880(CziFile):
         -------
         blocks of an image.
         """
-        if isinstance(block_index, (list, tuple, np.ndarray)):
+        if np.iterable(block_index):
             block = []
             for this_index in block_index:
                 block.append(self.block(this_index))
@@ -87,3 +88,34 @@ class LSM880(CziFile):
         """Iterator over the selected dimensions."""
         for this in self.key_index.groupby(dim):
             yield this
+
+    def __getitem__(self, key):
+        """Load image according to given keys. If a dictionary, load the
+        according images in the correct shape. If it is a int or list of ints,
+        then return list of images."""
+        if isinstance(key, dict):
+            key_index = self.key_index[key]
+
+            dim_dict = self.get_dim_dict()
+            out_data = np.zeros(key_index.shape + (dim_dict['Y'], dim_dict['X']))
+
+            out_coords = dict(key_index.coords)
+            out_coords.update({ax: range(dim_dict[ax]) for ax in ['Y', 'X']})
+
+            out_dims = key_index.dims + ('Y', 'X')
+
+            out = xr.DataArray(out_data, coords=out_coords, dims=out_dims)
+
+            my_keys = key_index.stack(lin=key_index.dims)
+            for this_vars, this_gp in my_keys.groupby('lin'):
+                out.loc[{ax: var for ax, var in
+                     zip(key_index.dims, this_vars)}] = self.block(
+                    this_gp.values)
+
+            return out
+
+        elif isinstance(key, (Iterable, int)):
+            return self.block(key)
+
+        else:
+            raise TypeError('Can not handle that type of key')
