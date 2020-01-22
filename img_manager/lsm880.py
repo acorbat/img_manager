@@ -97,7 +97,8 @@ class LSM880(CziFile):
             key_index = self.key_index[key]
 
             dim_dict = self.get_dim_dict()
-            out_data = np.zeros(key_index.shape + (dim_dict['Y'], dim_dict['X']))
+            out_data = np.zeros(key_index.shape + (dim_dict['Y'], dim_dict['X']),
+                                dtype='uint16')
 
             out_coords = dict(key_index.coords)
             out_coords.update({ax: range(dim_dict[ax]) for ax in ['Y', 'X']})
