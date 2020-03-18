@@ -671,11 +671,10 @@ class RollingBallCorrector(corr.GeneralCorrector):
     load_from_dict(parameter_dict)
         Loads the parameters from a saved dictionary.
     """
-    def __init__(self, radius, smooth=False, light_bkg=False):
+    def __init__(self, radius):
+        super().__init__()
         self.corrector_species = 'RollingBallCorrector'
         self.radius = int(radius)
-        self.smooth = smooth
-        self.light_bkg = light_bkg
 
     def correct(self, stack):
         """Shifts the given stack of images according to tvec.
@@ -690,26 +689,26 @@ class RollingBallCorrector(corr.GeneralCorrector):
         stack : numpy.ndarray
             Shifted stack of images
         """
+        need_to_squeeze = False
         if stack.ndim == 2:
             stack = stack[np.newaxis, :]
+            need_to_squeeze = True
 
         for n, this_img in enumerate(stack):
-            stack[n] = rb.rolling_ball_background(this_img, self.radius,
-                                                  light_background=self.light_bkg,
-                                                  smoothing=self.smooth)
+            stack[n] = rb.subtract_rolling_ball(this_img, self.radius)
+            stack = np.clip(stack, 0, np.inf)
+
+        if need_to_squeeze:
+            stack = np.squeeze(stack, axis=0)
 
         return stack
 
     def to_dict(self):
         """Returns a dictionary with the parameters."""
         return {'corrector_species': self.corrector_species,
-                'radius': self.radius,
-                'smooth': self.smooth,
-                'light_bkg': self.light_bkg
+                'radius': self.radius
                 }
 
     def load_from_dict(self, parameter_dict):
         """Loads the parameters from a saved dictionary."""
         self.radius = parameter_dict['radius']
-        self.smooth = parameter_dict['smooth']
-        self.light_bkg = parameter_dict['light_bkg']

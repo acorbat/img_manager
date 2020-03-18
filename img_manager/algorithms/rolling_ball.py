@@ -3,19 +3,24 @@ Rolling ball Algorithm based on proposal from
 https://github.com/scikit-image/scikit-image/issues/3538
 """
 
-
 import numpy as np
 from skimage.filters import threshold_local
 
 
-def dubtract_rolling_ball(image, radius):
+def subtract_rolling_ball(image, radius):
+    """Subtracts background from image using the Rolling Ball algorithm."""
     subtract = SubtractBall(radius)
-    background = threshold_local(image, radius, offset=np.percentile(image, 1),
-                                 method='generic', param=subtract.bg)
+    new_radius = subtract.ball.width
+    background = threshold_local(image, new_radius, method='generic',
+                                 param=subtract.bg)
     return image - background
 
 
 class SubtractBall:
+    """
+        Generates a RollingBall of the selected radius and uses it's profile to
+        calculate and subtract background.
+    """
     def __init__(self, radius):
         self.ball = RollingBall(radius)
 
@@ -33,8 +38,10 @@ class RollingBall:
     """
 
     def __init__(self, radius):
+        """Builds a ball of the selected radius and calculates the shrink
+        factor and arc_trim."""
 
-        self.data = []
+        self.profile = []
         self.width = 0
 
         if radius <= 10:
@@ -52,6 +59,7 @@ class RollingBall:
         self.build(radius, arc_trim_per)
 
     def build(self, ball_radius, arc_trim_per):
+        """Builds the ball into the profile attribute."""
         small_ball_radius = ball_radius / self.shrink_factor
 
         if small_ball_radius < 1:
@@ -61,7 +69,7 @@ class RollingBall:
         x_trim = int(arc_trim_per * small_ball_radius / 100)
         half_width = round(small_ball_radius - x_trim)
         self.width = 2 * half_width + 1
-        self.data = [0] * (self.width * self.width)
+        self.profile = [0] * (self.width * self.width)
 
         p = 0
         for y in range(self.width):
@@ -70,6 +78,13 @@ class RollingBall:
                 y_val = y - half_width
 
                 temp = r_square - x_val * x_val - y_val * y_val
-                self.data[p] = np.sqrt(temp) if temp > 0 else 0
+                self.profile[p] = np.sqrt(temp) if temp > 0 else 0
 
                 p += 1
+
+        self.profile = np.array(self.profile)
+        self.profile /= max(self.profile)
+
+    def get_ball(self):
+        """Returns an array with the values of the built ball."""
+        return self.profile.reshape(self.width, -1)
