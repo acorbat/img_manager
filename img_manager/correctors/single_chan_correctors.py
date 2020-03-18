@@ -5,6 +5,7 @@ import imreg_dft as ird
 from cellment import background
 
 from img_manager import corrector as corr
+from img_manager.algorithms import rolling_ball as rb
 
 
 class VariableBackgroundCorrector(corr.GeneralCorrector):
@@ -646,3 +647,69 @@ class ShiftCorrector(corr.GeneralCorrector):
     def load_from_dict(self, parameter_dict):
         """Loads the parameters from a saved dictionary."""
         self.tvec = parameter_dict['tvec']
+
+
+class RollingBallCorrector(corr.GeneralCorrector):
+    """Based on the concept of the rolling ball algorithm described in Stanley
+    Sternberg's article, "Biomedical Image Processing", IEEE Computer, January
+    1983.
+
+    Attributes
+    ----------
+    tvec : radius
+        vector to use as shift between channels
+
+    Methods
+    -------
+    find_shift(master_stack, stack_to_move)
+        Finds the necessary shift to correct shift_to_move in order to match
+        master stack.
+    correct(stack)
+        Shifts the given stack of images according to tvec.
+    to_dict()
+        Returns a dictionary with the parameters.
+    load_from_dict(parameter_dict)
+        Loads the parameters from a saved dictionary.
+    """
+    def __init__(self, radius, smooth=False, light_bkg=False):
+        self.corrector_species = 'RollingBallCorrector'
+        self.radius = int(radius)
+        self.smooth = smooth
+        self.light_bkg = light_bkg
+
+    def correct(self, stack):
+        """Shifts the given stack of images according to tvec.
+
+        Parameters
+        ----------
+        stack : numpy.ndarray
+            stack of images to be shifted
+
+        Returns
+        -------
+        stack : numpy.ndarray
+            Shifted stack of images
+        """
+        if stack.ndim == 2:
+            stack = stack[np.newaxis, :]
+
+        for n, this_img in enumerate(stack):
+            stack[n] = rb.rolling_ball_background(this_img, self.radius,
+                                                  light_background=self.light_bkg,
+                                                  smoothing=self.smooth)
+
+        return stack
+
+    def to_dict(self):
+        """Returns a dictionary with the parameters."""
+        return {'corrector_species': self.corrector_species,
+                'radius': self.radius,
+                'smooth': self.smooth,
+                'light_bkg': self.light_bkg
+                }
+
+    def load_from_dict(self, parameter_dict):
+        """Loads the parameters from a saved dictionary."""
+        self.radius = parameter_dict['radius']
+        self.smooth = parameter_dict['smooth']
+        self.light_bkg = parameter_dict['light_bkg']
