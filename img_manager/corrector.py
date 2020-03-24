@@ -1,348 +1,277 @@
-import json
+import inspect
 import numpy as np
-import lmfit as lm
-import matplotlib.pyplot as plt
+
+from collections import OrderedDict
+from serialize import dump, load
 
 
-class Corrector(object):
-    """An image or stack image corrector for background, bleaching and bleeding. Parameters for correction can be modified
-    and fit accordingly.
+class CorrectorArmy(object):
+    """CorrectorArmy class allows to keep track of all the channels in an
+    experiment, where each channel keeps track of all the corrections applied
+    to each one including the relation between them, such as shift or bleeding.
 
     Attributes
     ----------
-    bkg_model : lmfit.Model class
-        The exponential model used to fit the dark noise images
-    bkg_params : lmfit.Parameters class
-        The parameters for the background correction
+    channels : OrderedDict
+        An ordered dictionary containing all the channels
 
     Methods
     -------
-    bkg_exponential(x, amplitude, characteristic_time, constant)
-        Exponential function to be used in  background fitting
-    subtract_background(self, stack, time_step)
-        Subtracts background using the saved parameters from a stack of images
-    find_bkg_correction(self, stack, time_step, pp=None)
-        Loads a dark image stack and fits and saves the background correction paramaters
-    bleaching_exponential(x, amplitude, characteristic_time, constant)
-        Exponential function to fit bleaching in time series
-    correct_bleaching(self, stack, time_step)
-        Corrects bleaching effects from a stack, considering time steps between images and using saved bleaching
-        parameters
-    find_bleaching(self, stack, time_step, pp=None)
-        Given a stack of images, it calculates sum of intensity per timepoint, fits the bleaching exponential curve,
-        finds the ideal parameters and saves them. If pp is given a PdfPages, images of fit are saved.
+    add_channel(Channel Class)
+        adds a channel to the army
+    to_dict()
+        returns a dictionary with the information of every channel
+    save(path)
+        Saves the army to file
+    load(path)
+        Loads an army from a file (not implemented)
+    run_correctors()
+        runs all the correctors in every channel
     """
 
     def __init__(self):
-        """Return an image corrector with some initial parameters for background, bleaching and blleding correction."""
-        # background
-        self.bkg_model = lm.Model(self.bkg_exponential, independent_vars=['x'])
-        self.bkg_params = self.bkg_model.make_params(amplitude=9.30909784,
-                                                     characteristic_time=152.75328323,
-                                                     constant=43.32958973)
-        self.bkg_params['amplitude'].set(min=0)
-        self.bkg_params['characteristic_time'].set(min=0)
+        """Return an image corrector with some initial parameters for
+        background, bleaching and bleeding correction."""
 
-        # bleaching
-        self.bleach_model = lm.Model(self.bleaching_exponential, independent_vars=['x'])
-        self.bleach_params = self.bleach_model.make_params(amplitude=1.23445829e+06,
-                                                           characteristic_time=5.91511605e+02,
-                                                           constant=1.33089950e-04)
+        self.channels = OrderedDict()
 
-        # bleeding
-        self.bleed_mean = 0
-        self.bleed_error = 0
-
-    # Background Correction
-    #######################
-    @staticmethod
-    def bkg_exponential(x, amplitude, characteristic_time, constant):
-        """Exponential function to fit background increment in time series.
+    def add_channel(self, channel):
+        """Adds a channel to the corrector army.
 
         Parameters
         ----------
-        x : list, numpy.array
-            timepoints of function evaluation
-        amplitude : float
-            Amplitude of background noise variation through time
-        characteristic_time : float
-            Characteristic time of background variation
-        constant : float
-            Background noise stable value for long measurements
+        channel : Channel, str
+            channel to be added or created if not Channel class
+        """
+        if isinstance(channel, str):
+            channel = Channel(channel)
+
+        self.channels.update({channel.name: channel})
+
+    def to_dict(self):
+        """Returns a dictionary containing all the information of the different
+         channels and their correctors.
 
         Returns
         -------
-        Depending on input, returns value, list or array of background noise for the input timepoints
+        A dictionary containing all the channels and their correctors
         """
-        return -amplitude * np.exp(-x / characteristic_time) + constant
+        channel_dict = {chan: self.channels[chan].to_dict() for chan in self.channels}
 
-    def subtract_background(self, stack, time_step):
-        """Subtracts background from a stack, considering time steps between images and using saved background
-        parameters.
+        return channel_dict
 
-        Parameters
-        ----------
-        stack : numpy.array
-            Time series of images to be corrected
-        time_step
-            Time step between acquired images
-
-        Returns
-        -------
-            Returns the corrected stack
-        """
-        times = np.arange(0, time_step * len(stack), time_step)
-        stack_corrected = stack.copy()
-        background = self.bkg_model.eval(self.bkg_params, x=times)
-        for ind, frame in enumerate(stack_corrected):
-            stack_corrected[ind] = frame - background[ind]
-
-        return stack_corrected
-
-    def find_bkg_correction(self, stack, time_step, pp=None):
-        """Given a dark noise stack, it calculates mean per timepoint, fits the parameters and saves them. If pp is
-        given a PdfPages, images of fit are saved.
-
-        If fit is not converging, you can manually modify parameters with:
-            >>> corrector.bkg_params['constant'].set(value=40)
-            >>> corrector.bkg_params['amplitude'].set(value=10)
-            >>> corrector.bkg_params['characteristic_time'].set(value=20)
-
-        Parameters
-        ----------
-        stack : numpy.array
-            stack of dark noise images to find background (can be masked images)
-        time_step : float
-            Time step between acquired images
-        pp : PdfPages
-            Images of fitting are saved in this pdf
-        """
-        times = np.arange(0, time_step * len(stack), time_step)
-
-        means = []
-        for frame in stack:
-            means.append(np.nanmean(frame.flatten()))
-
-        result = self.bkg_model.fit(means, params=self.bkg_params, x=times)
-
-        for key in result.best_values.keys():
-            self.bkg_params[key].set(value=result.best_values[key])
-
-            # Save a pdf of applied correction
-        if pp is not None:
-            plt.plot(times, means, 'ob')
-            plt.plot(times, self.bkg_model.eval(self.bkg_params, x=times))
-            plt.xlabel('time (s)')
-            plt.ylabel('mean intensity (a.u.)')
-            pp.savefig()
-            plt.close()
-
-            corrected = self.subtract_background(stack, time_step)
-
-            means = []
-            for frame in corrected:
-                means.append(np.mean(frame.flatten()))
-
-            plt.plot(times, means, 'ob')
-            plt.xlabel('time (s)')
-            plt.ylabel('mean intensity (a.u.)')
-            pp.savefig()
-            plt.close()
-
-    # Bleaching Correction
-    ######################
-    @staticmethod
-    def bleaching_exponential(x, amplitude, characteristic_time, constant):
-        """Exponential function to fit bleaching in time series.
-
-        Parameters
-        ----------
-        x : list, numpy.array
-            timepoints of function evaluation
-        amplitude : float
-            Amplitude of bleaching decay
-        characteristic_time : float
-            Characteristic time of bleaching
-        constant : float
-            Constant value reached after long exposure
-
-        Returns
-        -------
-        Depending on input, returns value, list or array of intensity values for the input timepoints
-        """
-        return amplitude * np.exp(-x / characteristic_time) + constant
-
-    def correct_bleaching(self, stack, time_step):
-        """Corrects bleaching effects from a stack, considering time steps between images and using saved bleaching
-        parameters.
-
-        Parameters
-        ----------
-        stack : numpy.array
-            Time series of images to be corrected
-        time_step
-            Time step between acquired images
-
-        Returns
-        -------
-            Returns the corrected stack
-        """
-        stack_corrected = stack.copy()
-        times = np.arange(0, time_step * len(stack), time_step)
-        bleached_intensity = self.bleach_model.eval(self.bleach_params, x=times)
-        for ind, frame in enumerate(stack_corrected):
-            stack_corrected[ind] = frame / bleached_intensity[ind]
-
-        return stack_corrected
-
-    def find_bleaching(self, stack, time_step, pp=None):
-        """Given a stack of images, it calculates sum of intensity per timepoint, fits the bleaching exponential curve,
-        finds the ideal parameters and saves them. If pp is given a PdfPages, images of fit are saved.
-
-        The set of images given should already be background subtracted.
-
-        If fit is not converging, you can amnually modify parameters with:
-            >>> corrector.bleach_params['constant'].set(value=40)
-            >>> corrector.bleach_params['amplitude'].set(value=10)
-            >>> corrector.bleach_params['characteristic_time'].set(value=20)
-
-        Parameters
-        ----------
-        stack : numpy.array
-            stack of images to find intensity bleaching (can be masked with nan images). Background should be subtracted
-            before
-        time_step : float
-            Time step between acquired images
-        pp : PdfPages
-            Images of fitting are saved in this pdf
-        """
-        times = np.arange(0, time_step * (len(stack) + 1), time_step)[0:len(stack)]
-
-        bleach_stack = stack.copy()
-        total_intensity = [np.nansum(this_stack) for this_stack in bleach_stack]
-
-        result = self.bleach_model.fit(total_intensity, params=self.bleach_params, x=times)
-
-        for key in result.best_values.keys():
-            self.bleach_params[key].set(value=result.best_values[key])
-
-        # Save a pdf of applied correction
-        if pp is not None:
-            plt.plot(times, total_intensity, 'ob')
-            plt.plot(times, self.bleach_model.eval(self.bleach_params, x=times))
-            plt.xlabel('time (s)')
-            plt.ylabel('summed intensity (a.u.)')
-            pp.savefig()
-            plt.close()
-
-            corrected = self.correct_bleaching(stack, time_step)
-
-            total_intensity = [np.nansum(this_stack) for this_stack in corrected]
-
-            plt.plot(times, total_intensity, 'ob')
-            plt.xlabel('time (s)')
-            plt.ylabel('mean intensity (a.u.)')
-            pp.savefig()
-            plt.close()
-
-    # Bleeding Correction
-    #####################
-    def correct_bleeding(self, channel_1, channel_2):
-        """Correct bleeding in channel_1 into channel_2.
-
-        Parameters
-        ----------
-        channel_1 : numpy.array
-            Stack of images from channel_1 one that is bleeding into channel_2
-        channel_2 : numpy.array
-            Stack of images from channel_2 that is being contaminated by channel_1
-
-        Returns
-        -------
-        Corrected stacks of channel_2
-        """
-        return channel_2 - self.bleed_mean * channel_1
-
-    def find_bleeding(self, list_channel_1, list_channel_2, pp=None):
-        """Finds bleeding factor from two lists corresponding to values from each channel. Mean of ratios is saved as
-        bleeding factor, while error of the mean is saved as its error. If pp is given a PdfPages, the a histogram of
-        ratios is saved.
-
-        Lists of values may proceed from mean of labeled regions or lists of flattened pixels, etc.
-
-        Parameters
-        ----------
-        list_channel_1 : list, numpy.array
-            one dimensional array or list of values corresponding to intensities from channel_1
-        list_channel_2 : list, numpy.array
-            one dimensional array or list of values corresponding to intensities from channel_2
-        pp : PdfPages
-            Images of histograms are saved in this pdf
-        """
-        assert len(list_channel_1) == len(list_channel_2), 'Lists are not the same length.'
-
-        list_channel_1 = np.asarray(list_channel_1)
-        list_channel_2 = np.asarray(list_channel_2)
-        ratios = list_channel_2 / list_channel_1
-
-        self.bleed_mean = np.nanmean(ratios)
-        self.bleed_error = np.nanstd(ratios) / len(ratios)
-
-        if pp is not None:
-            plt.hist(ratios, bins=30)
-            plt.xlabel('intensity ratio')
-            plt.ylabel('frequency')
-            pp.savefig()
-            plt.close()
-
-    # General
-    #########
     def save(self, path):
-        """Save actual state of corrector to json.
+        """Save actual state of corrector to yaml.
 
         Parameters
         ----------
         path : path
-            path to file where corrector is to be saved
+            path to file where army is to be saved
         """
-        with open(str(path), 'w') as fp:
-            data = {'bkg': self.bkg_params.dumps(),
-                    'bleach': self.bleach_params.dumps(),
-                    'bleed': [self.bleed_mean, self.bleed_error]}
-            json.dump(data, fp)
+        dump(self.to_dict(), path)
 
     def load(self, path):
-        """Load parameters from json file to corrector.
+        """Load parameters from yaml file to CorrectorArmy.
 
         Parameters
         ----------
         path : path
-            path to file where corrector is to be saved
+            path to file where army is to be saved
         """
-        with open(str(path), 'r') as fp:
-            data = json.load(fp)
+        # TODO: Not implemented
+        data = load(path)
 
-            self.bkg_params.loads(data['bkg'])
-            self.bleach_params.loads(data['bleach'])
-            self.bleed_mean, self.bleed_error = data['bleed']
+        self.bkg_params.loads(data['bkg'])
+        self.bleach_params.loads(data['bleach'])
+        self.bleed_mean, self.bleed_error = data['bleed']
 
-    def subtract_and_normalize(self, stack, time_step):
-        """Apply consecutively a background subtraction and a bleaching normalization.
+    def run_correctors(self):
+        """Runs every corrector on every channel so that stacks are corrected.
+        """
+        for channel in self.channels:
+            self.channels[channel].correct_background()
+            self.channels[channel].correct_bleaching()
+            self.channels[channel].correct_shift()
+
+        # Implement bleeding correction should be separate as it happens after every channel is corrected for the rest.
+        # for channel in self.channels:
+        #     for source_channel, corrector in channel.bleeding_correctors:
+        #         corrector.correct(self.channels[source_channel].stack, channel.stack)
+
+    def __getitem__(self, item):
+        return self.channels[item]
+
+
+class Channel(object):
+    """Channel class contains all the information pertaining a specific channel
+    of the experiment to be analyzed. It has all the correctors that are to be
+    applied to the stacks. This class also contains the stack of images to be
+    corrected.
+
+    Attributes
+    ----------
+    name : str
+        name of the channel
+    background_correctors : list
+        List of background corrector to be subsequently applied to the stack
+    bleaching_correctors : list
+        List of bleaching corrector to be subsequently applied to the stack
+    shift_correctors : list
+        List of shift corrector to be subsequently applied to the stack
+    bleeding_correctors : list
+        List of bleeding corrector to be subsequently applied to the stack
+    stack : numpy.ndarray
+        Stack of images to be corrected (or already corrected)
+    stack_state : list
+        list of applied procedures on stack
+
+    Methods
+    -------
+    load_stack(stack)
+        Load a stack to the channel. It restarts state variables.
+    add_background_corrector(background_corrector)
+        Adds a background corrector only if it is a child of GeneralCorrector
+    add_bleaching_corrector(background_corrector)
+        Adds a background corrector only if it is a child of GeneralCorrector
+    add_shift_corrector(shift_corrector)
+        Adds a shift corrector only if it is a child of GeneralCorrector
+    add_bleeding_corrector(bleeding_corrector, source_channel)
+        Adds a bleeding corrector only if it is a child of GeneralCorrector
+    correct_background()
+        Runs all the background correctors in channel.
+    correct_bleaching()
+        Runs all the bleaching correctors in channel.
+    correct_shift()
+        Runs all the shift correctors in channel.
+    correct_bleeding()
+        Runs all the bleeding correctors in channel.
+    to_dict()
+        Creates a dictionary enumerating every corrector of each kind and where
+         each value is the dictionary obtained from the corrector.
+    load_from_dict(path)
+        Not Implemented Yet
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.background_correctors = []
+        self.bleaching_correctors = []
+        self.shift_correctors = []
+        self.bleeding_correctors = []
+
+        self.stack = [None]
+        self.stack_state = []  # attribute to append procedures applied to the stack
+
+    def load_stack(self, stack):
+        """Load a stack to the channel. It restarts state variables."""
+        if not len(stack.shape) > 2:
+            stack = stack[np.newaxis, ...]
+
+        self.stack = stack
+        self.stack_state = []
+        self.stack_state.append('loaded')
+
+    def add_background_corrector(self, background_corrector):
+        """Adds a background corrector only if it is a child of
+        GeneralCorrector"""
+        if GeneralCorrector.__name__ not in [c.__name__ for c in inspect.getmro(type(background_corrector))]:
+            raise TypeError('Not a child of GeneralCorrector')
+
+        self.background_correctors.append(background_corrector)
+
+    def add_bleaching_corrector(self, bleaching_corrector):
+        """Adds a bleaching corrector only if it is a child of
+        GeneralCorrector"""
+        if GeneralCorrector.__name__ not in [c.__name__ for c in inspect.getmro(type(bleaching_corrector))]:
+            raise TypeError('Not a child of GeneralCorrector')
+
+        self.bleaching_correctors.append(bleaching_corrector)
+
+    def add_shift_corrector(self, shift_corrector):
+        """Adds a shift corrector only if it is a child of GeneralCorrector"""
+        if GeneralCorrector.__name__ not in [c.__name__ for c in inspect.getmro(type(shift_corrector))]:
+            raise TypeError('Not a child of GeneralCorrector')
+
+        self.shift_correctors.append(shift_corrector)
+
+    def add_bleeding_corrector(self, bleeding_corrector, source_channel):
+        """Adds a bleeding corrector only if it is a child of
+        GeneralCorrector
 
         Parameters
         ----------
-        stack : numpy.array
-            Time series of images to be corrected
-        time_step
-            Time step between acquired images
+        bleeding_corrector : BleedingCorrector
+            Bleeding Corrector to use
+        source_channel : str
+            Name of the channel to use as source of bleeding"""
+        if GeneralCorrector.__name__ not in [c.__name__ for c in inspect.getmro(type(bleeding_corrector))]:
+            raise TypeError('Not a child of GeneralCorrector')
 
-        Returns
-        -------
-        stack_corrected : numpy.array
-            Returns the corrected numpy.array for background and bleaching
-        """
-        stack_corrected = self.subtract_background(stack, time_step)
+        self.bleeding_correctors.append((source_channel, bleeding_corrector))
 
-        stack_corrected = self.correct_bleaching(stack_corrected, time_step)
+    def correct_background(self):
+        """Runs all the background correctors in channel."""
+        for background_corrector in self.background_correctors:
+            self.stack = background_corrector.correct(self.stack)
 
-        return stack_corrected
+        self.stack_state.append('background corrected')
+
+    def correct_bleaching(self):
+        """Runs all the bleaching correctors in channel."""
+        for bleaching_corrector in self.bleaching_correctors:
+            self.stack = bleaching_corrector.correct(self.stack)
+
+        self.stack_state.append('bleaching corrected')
+
+    def correct_shift(self):
+        """Runs all the shift correctors in channel."""
+        for shift_corrector in self.shift_correctors:
+            self.stack = shift_corrector.correct(self.stack)
+
+        self.stack_state.append('shift corrected')
+
+    def correct_bleeding(self, source_stack):
+        """Runs all the bleeding correctors in channel."""
+        # TODO: not well implemented
+        for bleed_corrector in self.bleeding_correctors:
+            self.stack = bleed_corrector.correct(source_stack, self.stack)
+
+        self.stack_state.append('bleeding corrected')
+
+    def to_dict(self):
+        """Creates a dictionary enumerating every corrector of each kind and
+        where each value is the dictionary obtained from the corrector."""
+        background_dict = {n: this_corr.to_dict() for n, this_corr in enumerate(self.background_correctors)}
+        bleaching_dict = {n: this_corr.to_dict() for n, this_corr in enumerate(self.bleaching_correctors)}
+        shift_dict = {n: this_corr.to_dict() for n, this_corr in enumerate(self.shift_correctors)}
+        bleed_dict = {source_channel: this_corr.to_dict() for source_channel, this_corr in self.bleeding_correctors}
+
+        channel_dictionary = {'background': background_dict,
+                              'bleaching': bleaching_dict,
+                              'shift': shift_dict,
+                              'bleeding': bleed_dict}
+
+        return channel_dictionary
+
+    def load_from_dict(self):
+        # TODO: implement a load. How do we recognize which corrector load
+        pass
+
+
+class GeneralCorrector(object):
+    """Example of the mandatory methods required by any corrector."""
+
+    def __init__(self):
+        self.corrector_species = 'General'
+
+    def correct(self, stack):
+        """This function should only receive a stack and return the stack with the correction."""
+        raise NotImplementedError('This corrector has not implemented the correct method')
+
+    def to_dict(self):
+        """This method should be implemented to be able to save the variables of the corrector as a dictionary."""
+        raise NotImplementedError('This corrector has not implemented the to_dict method')
+
+    def load_from_dict(self, parameter_dict):
+        """This method should be implemented to be able to load the variables of the corrector from a dictionary."""
+        raise NotImplementedError('This corrector has not implemented the load_from_dict method')
