@@ -11,7 +11,7 @@ setup(
     description='Image IO and correction.',
     install_requires=['numpy', 'matplotlib', 'lmfit', 'imreg_dft',
                       'tifffile', 'oiffile', 'czifile', 'xarray',
-                      'scikit-image', 'serialize', 'cellment'],
-    dependency_links=['https://github.com/maurosilber/cellment.git',
-                      'https://github.com/hgrecco/serialize.git']
+                      'scikit-image',
+                      'serialize @ https://github.com/hgrecco/serialize',
+                      'cellment @ https://github.com/maurosilber/cellment']
 )
