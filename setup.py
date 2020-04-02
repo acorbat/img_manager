@@ -12,6 +12,6 @@ setup(
     install_requires=['numpy', 'matplotlib', 'lmfit', 'imreg_dft',
                       'tifffile', 'oiffile', 'czifile', 'xarray',
                       'scikit-image',
-                      'serialize @ https://github.com/hgrecco/serialize',
-                      'cellment @ https://github.com/maurosilber/cellment']
+                      'serialize @ git+https://github.com/hgrecco/serialize',
+                      'cellment @ git+https://github.com/maurosilber/cellment']
 )
