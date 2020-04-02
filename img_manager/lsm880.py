@@ -89,6 +89,16 @@ class LSM880(CziFile):
         for this in self.key_index.groupby(dim):
             yield this
 
+    def get_times(self):
+        """Gets time from timestamps of each Series."""
+        atachs = self.attachments()
+        for attach in atachs:
+            if 'TimeStamps' in str(attach):
+                break
+
+        times = np.diff(attach.data())
+        return np.concatenate(([0], times))
+
     def __getitem__(self, key):
         """Load image according to given keys. If a dictionary, load the
         according images in the correct shape. If it is a int or list of ints,
