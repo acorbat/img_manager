@@ -5,14 +5,17 @@ https://github.com/scikit-image/scikit-image/issues/3538
 
 import numpy as np
 from skimage.filters import threshold_local
+from skimage.transform import resize, pyramid_reduce
 
 
 def subtract_rolling_ball(image, radius):
     """Subtracts background from image using the Rolling Ball algorithm."""
     subtract = SubtractBall(radius)
     new_radius = subtract.ball.width
-    background = threshold_local(image, new_radius, method='generic',
+    small_image = pyramid_reduce(image, downscale=subtract.ball.shrink_factor)
+    background = threshold_local(small_image, new_radius, method='generic',
                                  param=subtract.bg)
+    background = resize(background, image.shape)
     return image - background
 
 
