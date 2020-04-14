@@ -89,14 +89,31 @@ class CorrectorArmy(object):
         """Runs every corrector on every channel so that stacks are corrected.
         """
         for channel in self.channels:
+            # Check if channel has no stack loaded
+            if 'loaded' not in self.channels[channel].stack_state :
+                print('Channel %s is not loaded' % channel)
+                continue
+
+            print('Correcting Channel: %s' % channel)
+            print('Correcting for background')
             self.channels[channel].correct_background()
+            print('Correcting for bleaching')
             self.channels[channel].correct_bleaching()
+            print('Correcting for shift')
             self.channels[channel].correct_shift()
 
-        # Implement bleeding correction should be separate as it happens after every channel is corrected for the rest.
-        # for channel in self.channels:
-        #     for source_channel, corrector in channel.bleeding_correctors:
-        #         corrector.correct(self.channels[source_channel].stack, channel.stack)
+        # Implement bleeding correction should be separate as it happens after
+        # every channel is corrected for the rest.
+        for channel in self.channels:
+            # Check if channel has no stack loaded
+            if 'loaded' not in self.channels[channel].stack_state :
+                print('Channel %s is not loaded' % channel)
+                continue
+
+            for corrector, source_channel in self.channels[channel].bleeding_correctors:
+                print('Correcting Bleeding of %s into %s' % (source_channel, channel))
+                corrector.correct(self.channels[source_channel].stack,
+                                  self.channels[channel].stack)
 
     def __getitem__(self, item):
         return self.channels[item]
@@ -164,9 +181,6 @@ class Channel(object):
 
     def load_stack(self, stack):
         """Load a stack to the channel. It restarts state variables."""
-        if not len(stack.shape) > 2:
-            stack = stack[np.newaxis, ...]
-
         self.stack = stack
         self.stack_state = []
         self.stack_state.append('loaded')
@@ -207,7 +221,7 @@ class Channel(object):
         if GeneralCorrector.__name__ not in [c.__name__ for c in inspect.getmro(type(bleeding_corrector))]:
             raise TypeError('Not a child of GeneralCorrector')
 
-        self.bleeding_correctors.append((source_channel, bleeding_corrector))
+        self.bleeding_correctors.append((bleeding_corrector, source_channel))
 
     def correct_background(self):
         """Runs all the background correctors in channel."""

@@ -631,11 +631,16 @@ class ShiftCorrector(corr.GeneralCorrector):
         stack : numpy.ndarray
             Shifted stack of images
         """
+        need_to_squeeze =False
         if len(stack.shape) == 2:
             stack = stack[np.newaxis, :]
+            need_to_squeeze = True
 
         for n, this_img in enumerate(stack):
             stack[n] = ird.imreg.transform_img(this_img, tvec=self.tvec, mode='nearest')
+
+        if need_to_squeeze:
+            stack = np.squeeze(stack, axis=0)
 
         return stack
 
@@ -656,16 +661,14 @@ class RollingBallCorrector(corr.GeneralCorrector):
 
     Attributes
     ----------
-    tvec : radius
-        vector to use as shift between channels
+    radius : int
+        Radius of the rolling ball to be used (must be bigger than the biggest
+        object)
 
     Methods
     -------
-    find_shift(master_stack, stack_to_move)
-        Finds the necessary shift to correct shift_to_move in order to match
-        master stack.
     correct(stack)
-        Shifts the given stack of images according to tvec.
+        Corrects inhomogeneous background using rolling ball algorithm
     to_dict()
         Returns a dictionary with the parameters.
     load_from_dict(parameter_dict)
