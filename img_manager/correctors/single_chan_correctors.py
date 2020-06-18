@@ -293,15 +293,19 @@ class SMOBackgroundCorrector(corr.GeneralCorrector):
 
         return bkg
 
-    def correct(self, stack):
-        """Subtracts background from the given stack."""
-        if isinstance(self.bkg_value, (int, float)):
-            return np.clip(stack - self.bkg_value, 0, np.inf)
-        if len(self.bkg_value.shape) == 1:
-            for n, (this_img, this_bkg) in enumerate(zip(stack, self.bkg_value)):
-                stack[n] = np.clip(this_img - this_bkg, 0, np.inf)
+    def _correct(self, stack, bkg_vals):
+        """Subtracts given bkg_vals background from the given stack."""
+        if isinstance(bkg_vals, (int, float)):
+            return np.clip(stack - bkg_vals, 0, np.inf)
+        if len(bkg_vals) > 1:
+            for n, (this_img, this_bkg) in enumerate(zip(stack, bkg_vals)):
+                stack[n] = self._correct(this_img, this_bkg)
 
         return stack
+
+    def correct(self, stack):
+        """Subtracts background from the given stack."""
+        return self._correct(stack, self.bkg_value)
 
     def to_dict(self):
         """Generates a dictionary with the attributes."""
